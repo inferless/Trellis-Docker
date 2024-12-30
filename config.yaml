@@ -2,7 +2,7 @@ storage:
   provider: s3  # or "gcs"
   bucket: ${MY_BUCKET}
   prefix: ${MY_PREFIX}
-  region: ${MY_AWS_REGION}
+  region: ${AWS_REGION}
 
 # Task processing configuration
 task:
