@@ -1,0 +1,38 @@
+storage:
+  provider: s3  # or "gcs"
+  bucket: infer-global-models
+  prefix: automation/
+  region: us-east-1
+
+# Task processing configuration
+task:
+  max_concurrent_tasks: 3  # Maximum number of concurrent tasks
+  queue_poll_interval: 0.5  # Sleep time when queue is full (seconds)
+  queue_timeout: 1  # Timeout for queue operations (seconds)
+
+# Model parameters defaults
+model:
+  sparse_structure:
+    default_steps: 12
+    default_strength: 7.5
+  slat:
+    default_steps: 12
+    default_strength: 3.0
+  mesh:
+    default_simplify: 0.95
+    default_texture_size: 1024
+    valid_texture_sizes: [512, 1024, 2048]
+
+
+# System paths
+paths:
+  temp_dir: "/tmp"  # Or use tempfile.gettempdir()
+  images_dir: "input_images"
+  tasks_dir: "output_tasks"
+
+# Logging configuration
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  
+
