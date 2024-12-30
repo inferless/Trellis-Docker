@@ -70,13 +70,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 #RUN git clone https://github.com/autonomousvision/mip-splatting.git /tmp/mip-splatting && \
 #    pip install /tmp/mip-splatting/submodules/diff-gaussian-rasterization/ && \
 #    rm -rf /tmp/mip-splatting
-ARG MY_AWS_ACCESS_KEY_ID
-ARG MY_AWS_SECRET_ACCESS_KEY
-ARG MY_AWS_REGION
 
-ENV AWS_ACCESS_KEY_ID=$MY_AWS_ACCESS_KEY_ID
-ENV AWS_SECRET_ACCESS_KEY=$MY_AWS_SECRET_ACCESS_KEY
-ENV AWS_REGION=$MY_AWS_REGION
 
 
 # Make port 8000 available to the world outside this container
