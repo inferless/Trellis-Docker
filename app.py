@@ -675,7 +675,7 @@ class TrellisAPI:
 
     def run_inference(self):
         try:
-            logger.info("Starting inference request")
+            logger.info("Starting inference request for image_url provider")
             start_time = time.time()
     
             # Step 1: Validate request
