@@ -443,7 +443,8 @@ class TrellisAPI:
         self.app.route('/trellis/task', methods=['POST'])(self.create_task)
         self.app.route('/trellis/task/<task_id>', methods=['GET'])(self.get_task_status)
         self.app.route('/ping', methods=['GET'])(self.ping)
-        
+        self.app.route('/trellis/inference', methods=['POST'])(self.run_inference)
+    
     def validate_image(self, file) -> tuple[Image.Image, str, int]:
         """Validate image file and return image object, format, and size"""
         try:
@@ -670,10 +671,153 @@ class TrellisAPI:
                 "timestamp": datetime.now().isoformat()
             }
         })
+
+    def run_inference(self):
+        try:
+            logger.info("Starting inference request")
+            start_time = time.time()
+    
+            # Validate request
+            if 'file' not in request.files:
+                logger.warning("Inference attempt with no file provided")
+                return jsonify({
+                    'code': 2003,
+                    'data': {'message': 'No file provided'}
+                }), 400
+    
+            file = request.files['file']
+            
+            # Get parameters from form data
+            params = {
+                "geometry_seed": int(request.form.get('geometry_seed', 0)),
+                "sparse_structure_steps": int(request.form.get('sparse_structure_steps', 20)),
+                "sparse_structure_strength": float(request.form.get('sparse_structure_strength', 7.5)),
+                "slat_steps": int(request.form.get('slat_steps', 20)),
+                "slat_strength": float(request.form.get('slat_strength', 3.0)),
+                "simplify": float(request.form.get('simplify', 0.95)),
+                "texture_size": int(request.form.get('texture_size', 1024))
+            }
+    
+            # Step 1: Process and validate image
+            try:
+                image, format_type, file_size = self.validate_image(file)
+                width, height = image.size
+                logger.info(f"Image validated: {width}x{height}, {file_size} bytes")
+            except ValueError as e:
+                logger.warning(str(e))
+                return jsonify({
+                    'code': 2004,
+                    'data': {'message': str(e)}
+                }), 400
+    
+            # Step 2: Save and upload file
+            image_token = str(uuid.uuid4())
+            temp_path = os.path.join(self.config.IMAGES_DIR, f"{image_token}.png")
+            
+            with open(temp_path, 'wb') as f:
+                file.stream.seek(0)
+                f.write(file.read())
+    
+            storage_path = f"{self.config.storage_input_dir}/{image_token}.png"
+            storage_url = self.config.storage.upload_file(temp_path, storage_path)
+            logger.info(f"Image uploaded to storage: {storage_path}")
+    
+            # Step 3: Create and validate task parameters
+            task_data = {
+                'type': 'image_to_model',
+                'file': {
+                    'file_token': image_token,
+                    'type': "image"
+                }
+            }
+            task_data.update(params)
+    
+            try:
+                _, validated_params = self.validate_task_params(task_data)
+            except ValueError as e:
+                os.remove(temp_path)
+                logger.warning(str(e))
+                return jsonify({
+                    'code': 2002,
+                    'data': {'message': f"Error in task parameters: {str(e)}"}
+                }), 400
+    
+            # Step 4: Create task
+            task_id = self.task_manager.create_task(image_token, temp_path, validated_params)
+            logger.info(f"Task created: {task_id}")
+    
+            # Step 5: Wait for completion with timeout
+            timeout = float(request.form.get('timeout', 300))  # Default 5 minutes timeout
+            poll_interval = 0.5  # Poll every 0.5 seconds
+            start_wait = time.time()
+    
+            while True:
+                status_data = self.task_manager.get_task_status(task_id)
+                
+                if status_data['status'] == 'failed':
+                    os.remove(temp_path)
+                    return jsonify({
+                        'code': 2005,
+                        'data': {
+                            'message': 'Processing failed',
+                            'error': status_data.get('error', 'Unknown error'),
+                            'task_id': task_id
+                        }
+                    }), 500
+    
+                if status_data['status'] == 'success':
+                    total_time = time.time() - start_time
+                    os.remove(temp_path)
+                    
+                    return jsonify({
+                        'code': 0,
+                        'data': {
+                            'message': 'Processing completed successfully',
+                            'task_id': task_id,
+                            'processing_time': total_time,
+                            'input': {
+                                'image_token': image_token,
+                                'width': width,
+                                'height': height,
+                                'size': file_size,
+                                'parameters': validated_params
+                            },
+                            'output': status_data['output'],
+                            'metrics': {
+                                'total_time': total_time,
+                                'progress': 100
+                            }
+                        }
+                    }), 200
+    
+                if time.time() - start_wait > timeout:
+                    os.remove(temp_path)
+                    return jsonify({
+                        'code': 2006,
+                        'data': {
+                            'message': 'Processing timeout',
+                            'task_id': task_id,
+                            'status': status_data['status'],
+                            'progress': status_data['progress']
+                        }
+                    }), 408
+    
+                time.sleep(poll_interval)
+    
+        except Exception as e:
+            logger.error(f"Inference failed: {str(e)}", exc_info=True)
+            if 'temp_path' in locals() and os.path.exists(temp_path):
+                os.remove(temp_path)
+            return jsonify({
+                'code': 500,
+                'data': {'message': f'Internal server error: {str(e)}'}
+            }), 500
+    
         
     def run(self, host='0.0.0.0', port=5000):
         """Run the API server"""
         self.app.run(host=host, port=port)
+        
 
 if __name__ == '__main__':
     api = TrellisAPI()
