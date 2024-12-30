@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify, send_file
 import os
+import io
 from PIL import Image
 import uuid
 from threading import Thread
@@ -677,63 +678,61 @@ class TrellisAPI:
             logger.info("Starting inference request")
             start_time = time.time()
     
-            # Validate request
-            if 'file' not in request.files:
-                logger.warning("Inference attempt with no file provided")
+            # Step 1: Validate request
+            data = request.json
+            if not data or 'image_url' not in data:
+                logger.warning("Inference attempt with no image_url provided")
                 return jsonify({
                     'code': 2003,
-                    'data': {'message': 'No file provided'}
+                    'data': {'message': 'No image_url provided'}
                 }), 400
     
-            file = request.files['file']
-            
-            # Get parameters from form data
-            params = {
-                "geometry_seed": int(request.form.get('geometry_seed', 0)),
-                "sparse_structure_steps": int(request.form.get('sparse_structure_steps', 20)),
-                "sparse_structure_strength": float(request.form.get('sparse_structure_strength', 7.5)),
-                "slat_steps": int(request.form.get('slat_steps', 20)),
-                "slat_strength": float(request.form.get('slat_strength', 3.0)),
-                "simplify": float(request.form.get('simplify', 0.95)),
-                "texture_size": int(request.form.get('texture_size', 1024))
-            }
+            image_url = data['image_url']
     
-            # Step 1: Process and validate image
+            # Step 2: Download image from URL
             try:
-                image, format_type, file_size = self.validate_image(file)
+                response = requests.get(image_url)
+                response.raise_for_status()
+                image = Image.open(io.BytesIO(response.content))
+                image_format = image.format.lower()
+                if image_format not in ['jpeg', 'jpg', 'png']:
+                    raise ValueError(f"Unsupported file type: {image_format}")
                 width, height = image.size
-                logger.info(f"Image validated: {width}x{height}, {file_size} bytes")
-            except ValueError as e:
-                logger.warning(str(e))
+                file_size = len(response.content)
+                logger.info(f"Image downloaded and validated: {width}x{height}, {file_size} bytes")
+            except Exception as e:
+                logger.error(f"Failed to download or validate image: {str(e)}")
                 return jsonify({
                     'code': 2004,
-                    'data': {'message': str(e)}
+                    'data': {'message': f'Failed to download or validate image: {str(e)}'}
                 }), 400
     
-            # Step 2: Save and upload file
+            # Step 3: Save and upload file
             image_token = str(uuid.uuid4())
             temp_path = os.path.join(self.config.IMAGES_DIR, f"{image_token}.png")
-            
-            with open(temp_path, 'wb') as f:
-                file.stream.seek(0)
-                f.write(file.read())
-    
+            image.save(temp_path)
             storage_path = f"{self.config.storage_input_dir}/{image_token}.png"
             storage_url = self.config.storage.upload_file(temp_path, storage_path)
             logger.info(f"Image uploaded to storage: {storage_path}")
     
             # Step 3: Create and validate task parameters
-            task_data = {
+            params = {
                 'type': 'image_to_model',
                 'file': {
                     'file_token': image_token,
                     'type': "image"
-                }
+                },
+                'geometry_seed': data.get('geometry_seed', 0),
+                'sparse_structure_steps': data.get('sparse_structure_steps', 20),
+                'sparse_structure_strength': data.get('sparse_structure_strength', 7.5),
+                'slat_steps': data.get('slat_steps', 20),
+                'slat_strength': data.get('slat_strength', 3.0),
+                'simplify': data.get('simplify', 0.95),
+                'texture_size': data.get('texture_size', 1024)
             }
-            task_data.update(params)
     
             try:
-                _, validated_params = self.validate_task_params(task_data)
+                _, validated_params = self.validate_task_params(params)
             except ValueError as e:
                 os.remove(temp_path)
                 logger.warning(str(e))
@@ -822,5 +821,3 @@ class TrellisAPI:
 if __name__ == '__main__':
     api = TrellisAPI()
     api.run()
-
-
