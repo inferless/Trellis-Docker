@@ -8,7 +8,6 @@ oauthlib==3.2.0
 keyring==23.5.0
 numpy==1.25.0
 protobuf==5.29.1
-Flask==3.1.0
 torch==2.4.0
 torchvision==0.19.0
 pillow==10.4.0
