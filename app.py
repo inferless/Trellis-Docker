@@ -553,26 +553,34 @@ class InferlessPythonModel:
                     total_time = time.time() - start_time
                     os.remove(temp_path)
                     return {
-                        'code': 0,
-                        'data': {
+                            'code': 0,
                             'message': 'Processing completed successfully',
                             'task_id': task_id,
                             'processing_time': total_time,
-                            'input': {
-                                'image_token': image_token,
-                                'width': width,
-                                'height': height,
-                                'size': file_size,
-                                'parameters': params
-                            },
-                            'output': status_data['output'],
-                            'metrics': {
-                                'total_time': total_time,
-                                'progress': 100
-                            }
-                        }
+                            'image_token': image_token,
+                            'width': width,
+                            'height': height,
+                            'size': file_size,
+                            
+                            # Flatten the parameters:
+                            'type': params['type'],
+                            'geometry_seed': params['geometry_seed'],
+                            'sparse_structure_steps': params['sparse_structure_steps'],
+                            'sparse_structure_strength': params['sparse_structure_strength'],
+                            'slat_steps': params['slat_steps'],
+                            'slat_strength': params['slat_strength'],
+                            'simplify': params['simplify'],
+                            'texture_size': params['texture_size'],
+                            
+                            # Flatten the output (model URLs):
+                            'model': status_data['output'].get('model'),
+                            's3_url': status_data['output'].get('s3_url'),
+                            'gcs_url': status_data['output'].get('gcs_url'),
+                            
+                            # Flatten metrics:
+                            'total_time': total_time,
+                            'progress': 100
                     }
-
                 # Check timeout
                 if time.time() - start_time > timeout:
                     os.remove(temp_path)
