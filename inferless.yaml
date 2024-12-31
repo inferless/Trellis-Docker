@@ -34,6 +34,9 @@ env:
   AWS_ACCESS_KEY_ID: '<YOUR_AWS_ACCESS_KEY_ID>'
   AWS_SECRET_ACCESS_KEY: '<YOUR_AWS_SECRET_ACCESS_KEY>'
   AWS_REGION: '<YOUR_AWS_REGION>'
+  PROVIDER: '<YOUR_PROVIDER>'
+  BUCKET: '<YOUR_BUCKET>'
+  PREFIX: '<YOUR_PREFIX>'
 secrets:
   # Add your secret ids here you can find it by running `inferless secrets list`
   # - 65723205-ce21-4392-a10b-3tf00c58988c
