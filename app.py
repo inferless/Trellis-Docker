@@ -25,23 +25,23 @@ from scripts.config import load_config
 from scripts.logger_setup import setup_logging
 
 # --------------------------------------------------------
-# 1) Setup logger 
+# Setup logger 
 # --------------------------------------------------------
 logger = setup_logging()
 
 # --------------------------------------------------------
-# 2) Ignore xFormers warnings 
+# Ignore xFormers warnings 
 # --------------------------------------------------------
 warnings.filterwarnings("ignore", message=".*xFormers is available.*")
 warnings.filterwarnings("ignore", category=UserWarning, module="dinov2.layers")
 
 # --------------------------------------------------------
-# 3) Configuration Management Class
+#  Configuration Management Class
 # --------------------------------------------------------
 class TrellisConfig:
     def __init__(self):
         # Load config file
-        CURRENT_DIR = os.path.dirname(__file__)  # /models/inferless-model/1/scripts
+        CURRENT_DIR = os.path.dirname(__file__)
         CONFIG_PATH = os.path.abspath(os.path.join(CURRENT_DIR, "config.yaml"))
         config = load_config(CONFIG_PATH)
         # Task processing settings
@@ -80,7 +80,7 @@ class TrellisConfig:
 
 
 # --------------------------------------------------------
-# 4) Model Management Class
+# Model Management Class
 # --------------------------------------------------------
 class TrellisModel:
     """Model management class"""
@@ -112,7 +112,7 @@ class TrellisModel:
 
 
 # --------------------------------------------------------
-# 5) Task Management Class
+# Task Management Class
 # --------------------------------------------------------
 class TaskManager:
     """Task management class"""
@@ -400,7 +400,7 @@ class TaskManager:
 
 
 # --------------------------------------------------------
-# 6) Inferless Model Wrapper
+# Inferless Model Wrapper
 # --------------------------------------------------------
 class InferlessPythonModel:
     def initialize(self):
@@ -409,10 +409,9 @@ class InferlessPythonModel:
         """
         logger.info("Initializing InferlessPythonModel...")
         
-        # Equivalent to TrellisAPI.__init__()
-        self.config = TrellisConfig()         # Load config
-        self.model = TrellisModel()           # Initialize model pipeline
-        self.task_manager = TaskManager(      # Create background task manager
+        self.config = TrellisConfig()
+        self.model = TrellisModel()      
+        self.task_manager = TaskManager(
             self.config, 
             self.model
         )
@@ -420,26 +419,8 @@ class InferlessPythonModel:
         logger.info("InferlessPythonModel initialized successfully.")
 
     def infer(self, inputs: dict) -> dict:
-        """
-        This method replaces the Flask-based /trellis/inference endpoint.
-        Expects a dictionary similar to:
-        
-            {
-                "image_url": "http://...",
-                "geometry_seed": 42,
-                "sparse_structure_steps": 20,
-                ...
-                "timeout": 300
-            }
-        
-        Returns a dictionary that mimics your JSON response.
-        """
         try:
             logger.info("Starting inference request via InferlessPythonModel.infer")
-
-            # -----------------------------------------------------
-            # 1) Validate inputs
-            # -----------------------------------------------------
             if "image_url" not in inputs:
                 logger.warning("Inference attempt with no image_url provided.")
                 return {
@@ -450,10 +431,7 @@ class InferlessPythonModel:
             image_url = inputs["image_url"]
             timeout = float(inputs.get('timeout', 300))  # Default 5 minutes
             poll_interval = 0.5  # Poll every 0.5 seconds
-
-            # -----------------------------------------------------
-            # 2) Download image
-            # -----------------------------------------------------
+            
             try:
                 response = requests.get(image_url)
                 response.raise_for_status()
@@ -474,9 +452,6 @@ class InferlessPythonModel:
                     'data': {'message': f'Failed to download or validate image: {str(e)}'}
                 }
 
-            # -----------------------------------------------------
-            # 3) Save and upload file
-            # -----------------------------------------------------
             image_token = str(uuid.uuid4())
             temp_path = os.path.join(self.config.IMAGES_DIR, f"{image_token}.png")
             image.save(temp_path)
@@ -484,10 +459,7 @@ class InferlessPythonModel:
             storage_path = f"{self.config.storage_input_dir}/{image_token}.png"
             storage_url = self.config.storage.upload_file(temp_path, storage_path)
             logger.info(f"Image uploaded to storage: {storage_path}")
-
-            # -----------------------------------------------------
-            # 4) Create & validate task parameters
-            # -----------------------------------------------------
+            
             params = {
                 'type': 'image_to_model',
                 'file': {
@@ -503,12 +475,7 @@ class InferlessPythonModel:
                 'simplify': float(inputs.get('simplify', 0.95)),
                 'texture_size': int(inputs.get('texture_size', 1024)),
             }
-            
-            # Minimal validation logic from your existing validate_task_params:
-            # (You can copy the entire function if you want the same checks, 
-            #  or keep it simpler.)
-            
-            # Example: geometry_seed must be between 0 and MAX_SEED
+
             geometry_seed = int(params['geometry_seed'])
             if geometry_seed < 0 or geometry_seed > self.config.MAX_SEED:
                 os.remove(temp_path)
@@ -517,16 +484,10 @@ class InferlessPythonModel:
                     'data': {'message': f"geometry_seed must be between 0 and {self.config.MAX_SEED}"}
                 }
 
-            # -----------------------------------------------------
-            # 5) Create task
-            # -----------------------------------------------------
             start_time = time.time()
             task_id = self.task_manager.create_task(image_token, temp_path, params)
             logger.info(f"Task created: {task_id}")
 
-            # -----------------------------------------------------
-            # 6) Poll for completion or timeout
-            # -----------------------------------------------------
             while True:
                 status_data = self.task_manager.get_task_status(task_id)
                 
