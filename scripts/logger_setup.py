@@ -1,4 +1,5 @@
 import logging
+import os
 from scripts.config import load_config
 
 def setup_logging():
