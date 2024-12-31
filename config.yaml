@@ -1,8 +1,8 @@
 storage:
-  provider: s3  # or "gcs"
-  bucket: infer-global-models
-  prefix: automation/
-  region: us-east-1
+  provider: ${PROVIDER}
+  bucket: ${BUCKET}
+  prefix: ${PREFIX}
+  region: ${AWS_REGION}
 
 # Task processing configuration
 task:
