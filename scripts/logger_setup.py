@@ -5,7 +5,7 @@ from scripts.config import load_config
 def setup_logging():
     """Setup logging configuration from config file"""
     CURRENT_DIR = os.path.dirname(__file__)
-    CONFIG_PATH = os.path.abspath(os.path.join(CURRENT_DIR, "scripts", "config.yaml"))
+    CONFIG_PATH = os.path.abspath(os.path.join(CURRENT_DIR, "..", "config.yaml"))
     print("***"*100,"CONFIG_PATH:", CONFIG_PATH,flush=True)
     
     config = load_config(CONFIG_PATH)
