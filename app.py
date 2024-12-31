@@ -41,8 +41,9 @@ warnings.filterwarnings("ignore", category=UserWarning, module="dinov2.layers")
 class TrellisConfig:
     def __init__(self):
         # Load config file
-        config = load_config("./config.yaml")
-        
+        CURRENT_DIR = os.path.dirname(__file__)  # /models/inferless-model/1/scripts
+        CONFIG_PATH = os.path.abspath(os.path.join(CURRENT_DIR, "config.yaml"))
+        config = load_config(CONFIG_PATH)
         # Task processing settings
         self.max_concurrent_tasks = config["task"]["max_concurrent_tasks"]
         self.queue_poll_interval = config["task"]["queue_poll_interval"]
