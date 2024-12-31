@@ -494,13 +494,13 @@ class InferlessPythonModel:
                     'type': "image"
                 },
                 # Model parameters
-                'geometry_seed': inputs.get('geometry_seed', 0),
-                'sparse_structure_steps': inputs.get('sparse_structure_steps', 20),
-                'sparse_structure_strength': inputs.get('sparse_structure_strength', 7.5),
-                'slat_steps': inputs.get('slat_steps', 20),
-                'slat_strength': inputs.get('slat_strength', 3.0),
-                'simplify': inputs.get('simplify', 0.95),
-                'texture_size': inputs.get('texture_size', 1024),
+                'geometry_seed': int(inputs.get('geometry_seed', 0)),
+                'sparse_structure_steps': int(inputs.get('sparse_structure_steps', 20)),
+                'sparse_structure_strength': float(inputs.get('sparse_structure_strength', 7.5)),
+                'slat_steps': int(inputs.get('slat_steps', 20)),
+                'slat_strength': float(inputs.get('slat_strength', 3.0)),
+                'simplify': float(inputs.get('simplify', 0.95)),
+                'texture_size': int(inputs.get('texture_size', 1024)),
             }
             
             # Minimal validation logic from your existing validate_task_params:
